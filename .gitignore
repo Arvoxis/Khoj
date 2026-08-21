@@ -27,3 +27,9 @@ runs/
 SARD_YOLO*/
 HERIDAL*/
 *.zip
+
+# editor / OS
+.obsidian/
+
+# blank pitch template (source only, not a deliverable)
+INNOHACK 2.0 TEMPLATE.pptx
