@@ -1,4 +1,4 @@
-# NightWing / KHOJ
+# KHOJ
 
 ## Project layout
 
