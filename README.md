@@ -10,6 +10,11 @@
 - `scripts/` - metrics, viewer, and perception demonstration entry points.
 - `tests/` - backend and WebSocket checks.
 - `docs/` - state contract documentation.
+- `khoj/` - hardware/firmware stack: ESP32 mesh firmware (`firmware/`), the USB
+  wire contract (`firmware/lib/quorum_proto/quorum_proto.h` <-> `sim/protocol.py`),
+  the laptop-side feeder/bridge (`sim/feeder*.py`), and hardware docs/diagrams.
+- `demo/` - pitch materials: sample images, screenshots, diagrams, and
+  `PITCH_NOTES.md` (stats, demo runbook, Q&A prep).
 
 ## Run the system
 
