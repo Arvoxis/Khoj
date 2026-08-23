@@ -248,48 +248,41 @@ every board; each learns its own identity from its MAC and then runs the full
 sense → decide → act loop locally. The laptop never assigns work — it only tells
 a board where its body is and what its sensors picked up.
 
-```mermaid
-flowchart TB
-    subgraph BOOT["① BOOT — once per power-on"]
-        PWR(["Power-on / DTR soft-reset"]) --> ID["Read own WiFi MAC →<br/>agent_id via khoj_ids.h"]
-        ID --> INIT["Bring up ESP-NOW · channel 1<br/>register FF:FF:FF:FF:FF:FF broadcast peer"]
-    end
+![KHOJ decentralized hardware pipeline — the laptop HIL feed, the ESP-NOW radio mesh, and the identical on-board decision loop](docs/hardware_pipeline.png)
 
-    subgraph MESH["② ESP-NOW MESH — always on · 5 Hz · no router · no leader"]
-        HB["Broadcast heartbeat<br/>quorum_msg_t · 23 B"]
-        PEER["Peer table:<br/>loss % from seq gaps · RSSI · last-seen age"]
-        DEAD["silent 2 s → peer DEAD →<br/>its tasks return to the pool"]
-        HB --> PEER --> DEAD
-    end
+The laptop feeds each board its body state over USB; the board decides on-chip
+and sends back only a goal. Boards talk to each other **directly** over ESP-NOW —
+no router, no leader — and the same USB line's DTR pin resets the board without a
+power cycle.
 
-    subgraph LOOP["③ SENSE → DECIDE → ACT — every tick, on-device"]
-        RXU["USB IN · usb_sensor_t · 28 B<br/>my position · detection conf · phone RSSI"]
-        BEL["Update belief · drain the 32×32<br/>grid cells I just observed"]
-        DEC{"detection<br/>confidence band?"}
-        SPAWN["broadcast a REOBSERVE task"]
-        FUSE["log-odds fusion"]
-        RFC{"my RF ≥ RF_NEAR_DBM?"}
-        RFT["CONFIRM_RF ·<br/>climb the RSSI gradient"]
-        BID["price every open task ·<br/>bid = U · exp(-(t+c)/τ) / (c+ε)"]
-        WIN["winner = highest bid · tie → lowest id<br/>same rule on every board → same winner"]
-        ST{"emit state:<br/>SEARCH · REOBSERVE · RF_LOCALIZE"}
-        TXU["USB OUT · usb_goal_t · 17 B<br/>chosen goal · state · task id"]
+### The on-board decision flow
 
-        RXU --> BEL --> DEC
-        DEC -->|"&lt; 0.15 · ignore"| ST
-        DEC -->|"0.15–0.80 · uncertain"| SPAWN --> BID
-        DEC -->|"&gt; 0.80 · strong"| FUSE --> BID
-        BEL --> RFC
-        RFC -->|"near source"| RFT --> ST
-        BID --> WIN --> ST
-        ST --> TXU
-    end
+**One camera or RF look goes in; one goal comes out** — and the whole re-observation
+loop that makes this a *swarm* (rather than five drones with a shared to-do list)
+is this branch on confidence, run identically on every board:
 
-    INIT --> RXU
-    HB -. "bids · awards · RF samples" .-> BID
-    DEAD -. "freed tasks re-auctioned" .-> BID
-    TXU -. "next tick" .-> RXU
-```
+<table>
+<tr>
+<td width="56%">
+
+<img src="docs/decision_flow.png" alt="KHOJ on-board decision flowchart: sense, update belief, branch on detection confidence, re-observe uncertain sightings via the auction, fuse independent looks, and confirm only when two agents agree" width="100%">
+
+</td>
+<td width="44%">
+
+The branch a sighting takes depends entirely on its confidence:
+
+- **`< 0.15`** — ignored as empty ground.
+- **`0.15 – 0.80` (uncertain)** — the board broadcasts a **`REOBSERVE`** task; the auction hands it to another drone, which takes a **second look from a different bearing**.
+- **`> 0.80`** — strong enough to go straight to fusion.
+
+A survivor is **`CONFIRMED`** only when the fused posterior clears `0.80` **and at least two independent agents agree** — self-confirmation is impossible by construction. Anything that fails is **`DISMISSED`** and broadcast to the swarm, so no drone ever wastes a second look on a ruled-out lead.
+
+Running in parallel, a 5 Hz heartbeat marks any peer **`DEAD`** after 2 s of silence and returns its tasks to the auction pool — recovery in under two seconds.
+
+</td>
+</tr>
+</table>
 
 ### On-device state machine
 
