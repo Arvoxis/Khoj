@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🛰️ KHOJ
+# KHOJ
 
 **A leaderless drone swarm that finds survivors in collapsed buildings — no GPS, no pilot, no central controller.**
 
