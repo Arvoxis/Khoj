@@ -280,9 +280,9 @@ def _table(aggs: list[Agg], n_surv: int, budget_s: float) -> str:
             f"{a.false_mean:>8.2f} {a.false_runs:>4}/{a.n:<2} {a.missed_mean:>7.2f} "
             f"{a.dismissed_mean:>8.1f} {_fmt_rescue(a):>14}")
     lines.append("")
-    lines.append(f"(budget={budget_s:.0f}s equal for all · {n_surv} survivors/run · "
-                 f"MATCH_R={MATCH_R} · trueCf/falseCf=true/false confirmations · "
-                 f"FCruns=seeds w/ >=1 false confirm · t_rescue=time to confirm "
+    lines.append(f"(budget={budget_s:.0f}s equal for all | {n_surv} survivors/run | "
+                 f"MATCH_R={MATCH_R} | trueCf/falseCf=true/false confirmations | "
+                 f"FCruns=seeds w/ >=1 false confirm | t_rescue=time to confirm "
                  f"{n_surv-1}/{n_surv})")
     return "\n".join(lines)
 
@@ -336,7 +336,7 @@ def main():
     families.append(("BELIEF ABLATIONS  (our system, pieces removed)",
                      [_agg(name, [fn(s) for s in seeds]) for name, fn in abl.items()]))
 
-    print(f"\nKHOJ v4 metrics — {len(seeds)} seeds ({seeds[0]}..{seeds[-1]}), "
+    print(f"\nKHOJ v4 metrics - {len(seeds)} seeds ({seeds[0]}..{seeds[-1]}), "
           f"equal budget {args.budget:.0f}s ({budget_ticks} ticks)\n")
     for title, aggs in families:
         print("=" * 96)

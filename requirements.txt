@@ -1,0 +1,21 @@
+# KHOJ - laptop stack (dashboard + simulation + hardware bridge).
+#
+# The core swarm engine (engine/) is pure Python 3 stdlib and needs NONE of
+# these - it runs headless anywhere. These are only for the dashboard, the
+# metrics/viewer tools, and the USB bridge to the ESP32 boards.
+#
+# GPU / detector dependencies are intentionally separate: see
+# detector/requirements.txt (torch is env- and CUDA-specific).
+#
+#   python -m pip install -r requirements.txt
+
+# --- dashboard backend (backend/) ---
+fastapi>=0.110
+uvicorn[standard]>=0.29      # ASGI server + websockets for the live dashboard
+
+# --- simulation metrics & viewer (scripts/) ---
+numpy>=1.24
+matplotlib>=3.7             # scripts/viewer.py, scripts/metrics.py plots
+
+# --- hardware-in-the-loop bridge (khoj/sim/feeder_real.py, wire_test.py) ---
+pyserial>=3.5              # imported as `serial`

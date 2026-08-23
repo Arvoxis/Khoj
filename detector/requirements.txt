@@ -1,0 +1,16 @@
+# KHOJ - detector (detector/). GPU environment only.
+#
+# Run these in a dedicated ML env (e.g. a `ml` conda env on the laptop, or the
+# JetPack Python on the Jetson).
+#
+#   python -m pip install -r detector/requirements.txt
+
+ultralytics>=8.3            # YOLO11 training / inference / export
+
+# torch and torchvision are deliberately NOT pinned here, because the correct
+# build depends on the machine:
+#
+#   * Jetson (Orin): torch ships with JetPack - do NOT pip install over it.
+#   * Laptop GPU:    install the CUDA build FIRST, from https://pytorch.org , e.g.
+#         pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+#   * CPU only:      pip install torch torchvision   (inference will be slow)
