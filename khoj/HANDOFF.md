@@ -178,8 +178,9 @@ bid wins; ties → lowest agent ID**) on the SAME data, so they all reach the SA
 winner with no referee. Sequential greedy: highest-value tasks claim their best free
 agent first.
 
-**Failure detection / self-healing:** HEARTBEAT ~2 Hz. No message from agent k for
-~2 s (4 missed) → all agents independently drop k and return its tasks to the pool →
+**Failure detection / self-healing:** HEARTBEAT 5 Hz (`TX_INTERVAL_MS 200`). No message
+from agent k for 2 s (`PEER_TIMEOUT_MS`, i.e. 10 missed) → all agents independently drop k
+and return its tasks to the pool →
 next auction round reassigns them. This is the "yank a node's power" demo beat — the
 recovery is emergent, not scripted.
 
@@ -187,7 +188,8 @@ recovery is emergent, not scripted.
 
 ## 8. Re-observation + fusion + Hive-Mind (LOCKED; Hive-Mind is core, built)
 
-- A detection with confidence in the uncertain band (≈0.25–0.65) becomes a
+- A detection with confidence in the uncertain band (0.15–0.80 — `DISMISS_P` / `CONFIRM_P`
+  in `engine/belief.py`) becomes a
   **REOBSERVE task**. Another agent bids and re-looks from a **different bearing**.
 - Confidences fuse via **log-odds** (Bayesian): `logodds += logit(conf)`, only
   fusing genuinely new viewpoints (>20° apart) to keep the looks conditionally
@@ -404,5 +406,7 @@ to *decide*, not to move. Draw this line yourself = credibility; blur it = taken
 - Build **module by module**; let him test each on real hardware before the next.
 - **Don't use tools when it's just chatting/Q&A.** Use tools only when he asks for code
   or a file. Don't waste tokens narrating process; limit filler words.
-- **GitHub repo: `Arvoxis/NightWing`** (shared with Rakshit). **Do NOT push until he
-  explicitly says so.** Local repo folder is `quorum/`.
+- **GitHub repo: `Arvoxis/Khoj`** (shared with Rakshit). **Do NOT push until he
+  explicitly says so.** Local repo folder is `Khoj/`.
+  (The project was renamed from NightWing/QUORUM. The rename sweep is deliberately
+  deferred, so `quorum_*` identifiers and "NIGHTWING" UI branding still appear in code.)

@@ -33,3 +33,6 @@ HERIDAL*/
 
 # blank pitch template (source only, not a deliverable)
 INNOHACK 2.0 TEMPLATE.pptx
+
+# graphify knowledge-graph output (regenerate with /graphify . --update)
+graphify-out/
