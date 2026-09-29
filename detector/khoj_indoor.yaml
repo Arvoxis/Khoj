@@ -1,0 +1,10 @@
+# C2A disaster-scenario human detection (fine-tune for indoor/collapsed-building SAR)
+# Dataset: https://www.kaggle.com/datasets/rgbnihal/c2a-dataset
+# Single class; pose labels live in a separate COCO folder we don't use here.
+path: C:/Users/Raksh/.cache/kagglehub/datasets/rgbnihal/c2a-dataset/versions/2/C2A_Dataset/new_dataset3
+train: train/images
+val: val/images
+test: test/images
+
+names:
+  0: person

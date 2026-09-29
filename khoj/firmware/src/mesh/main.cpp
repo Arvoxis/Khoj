@@ -48,7 +48,7 @@
 // ever need to see individual packets again.
 #define VERBOSE_RX        0
 // A board is declared DEAD after this long with no packet from it. At a 5 Hz
-// heartbeat that is 4 missed in a row — long enough not to trip on normal
+// heartbeat (TX_INTERVAL_MS 200) that is 10 missed in a row — long enough not to trip on normal
 // packet loss, short enough that a judge yanking a power cable sees the swarm
 // react while they are still holding the cable.
 #define PEER_TIMEOUT_MS   2000

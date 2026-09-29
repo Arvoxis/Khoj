@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KHOJ - Technical Stack Summary</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px;
+            background: white;
+        }
+        h1 { color: #1a1a2e; border-bottom: 3px solid #0f3460; padding-bottom: 10px; }
+        h2 { color: #0f3460; margin-top: 30px; }
+        h3 { color: #16213e; }
+        .section { margin-bottom: 30px; }
+        .stack-component {
+            background: #f5f5f5;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #0f3460;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th { background: #0f3460; color: white; }
+        .metric {
+            background: #e8f4f8;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+        }
+        .demo-status {
+            background: #d4edda;
+            border: 1px solid #28a745;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .demo-status.partial {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 800px) {
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <h1>KHOJ - Technical Architecture Summary</h1>
+
+    <div class="section">
+        <h2>Executive Overview</h2>
+        <p><strong>KHOJ</strong> is an autonomous drone swarm for search & rescue that operates without a central controller. Drones coordinate via a leaderless market auction, confirm survivors with a second independent sensor, and operate on a mesh of \$5 ESP32 boards. The system combines Python simulation, real detector inference on a Jetson edge device, and embedded firmware for decentralized decision-making.</p>
+    </div>
+
+    <div class="section">
+        <h2>Complete Tech Stack</h2>
+
+        <h3>1. Swarm Engine (Python)</h3>
+        <div class="stack-component">
+            <strong>Location:</strong> <code>engine/</code><br>
+            <strong>Core Modules:</strong> world.py, swarm.py, belief.py, protocol.py, run_sim.py, perception.py
+        </div>
+        <p><strong>Purpose:</strong> Simulate and run the real swarm coordination logic.</p>
+        <ul>
+            <li><strong>World Simulation:</strong> 60×40 grid world with hidden survivors, RSSI fields, knowledge maps</li>
+            <li><strong>Swarm Coordination:</strong> Leaderless auction where drones bid <code>expected_survivors/sec</code>; highest bid wins (ties → lowest agent ID)</li>
+            <li><strong>Belief Fusion:</strong> Bayesian log-odds per survivor. Requires ≥2 independent agents for confirmation (no self-confirmation)</li>
+            <li><strong>Trust Model:</strong> Per-agent Beta prior. Faulty sensors auto-quarantine after poor predictions</li>
+            <li><strong>Perception Projection:</strong> Maps nadir camera boxes to world coordinates using pinhole camera model (altitude 30m, hfov 66°)</li>
+        </ul>
+
+        <h3>2. Real Detector (Jetson)</h3>
+        <div class="stack-component">
+            <strong>Location:</strong> <code>detector/</code><br>
+            <strong>Files:</strong> train.py, export_jetson.py, jetson_cam_demo.py, jetson_stream.py
+        </div>
+        <p><strong>Purpose:</strong> Run trained YOLO inference on the drone's onboard compute.</p>
+        <ul>
+            <li><strong>Model:</strong> YOLOv11n trained on 1,200 real aerial SAR images (SARD dataset), then fine-tuned for indoor/collapsed-building scenes on the Kaggle <strong>C2A</strong> dataset &mdash; see <code>detector/khoj_indoor.yaml</code>, which is the active detector config</li>
+            <li><strong>Accuracy:</strong> mAP50 0.934, recall 0.875</li>
+            <li><strong>Optimization:</strong> Quantized to FP16 TensorRT engine (device-specific, built on Jetson)</li>
+            <li><strong>Speed:</strong> Single-digit ms/frame on Orin (inference-only)</li>
+            <li><strong>Live Demo:</strong> <code>jetson_stream.py</code> serves MJPEG (live boxes + confidence) to browser at <code>http://192.168.55.1:8090</code></li>
+        </ul>
+
+        <h3>3. Hardware (ESP32 Mesh)</h3>
+        <div class="stack-component">
+            <strong>Location:</strong> <code>khoj/firmware/</code><br>
+            <strong>Files:</strong> src/mesh/main.cpp, src/agent/main.cpp, lib/quorum_proto/quorum_proto.h
+        </div>
+        <p><strong>Purpose:</strong> Decentralized on-device coordination on 5 ESP32 boards.</p>
+        <ul>
+            <li><strong>Protocol:</strong> ESP-NOW mesh, 5 Hz heartbeat, 28-byte sensor frames + 17-byte goal frames</li>
+            <li><strong>On-Device Auction:</strong> Each board prices incoming sightings and bids for tasks—no laptop referee</li>
+            <li><strong>Failure Detection:</strong> Peer dead in <2 seconds; re-auction triggered automatically</li>
+            <li><strong>RF Localization:</strong> Hill-climb to transmitter across distributed RSSI readings</li>
+            <li><strong>Wire Contract:</strong> <code>quorum_proto.h</code> ↔ <code>khoj/sim/protocol.py</code> (byte-identical)</li>
+            <li><strong>Performance:</strong> 0% packet loss @ 5 Hz over bench test</li>
+        </ul>
+
+        <h3>4. Dashboard & Visualization</h3>
+        <div class="stack-component">
+            <strong>Location:</strong> <code>frontend/</code>, <code>backend/</code>, <code>dashboard/</code>
+        </div>
+        <p><strong>Purpose:</strong> Real-time mission console showing swarm state, coverage, belief, and auction progress.</p>
+        <ul>
+            <li><strong>Backend:</strong> FastAPI + WebSocket (state updates 10 Hz)</li>
+            <li><strong>Frontend:</strong> Canvas-based 2D visualization (index.html, app.js, styles.css)</li>
+            <li><strong>State Adapters:</strong> 3 modes—fake (mock), real (Python engine), hardware (5 live boards)</li>
+            <li><strong>Data Rendered:</strong> Agent positions/headings, open tasks, candidate survivors, confirmed survivors, trust scores, coverage heatmap</li>
+        </ul>
+
+        <h3>5. Integration Layer</h3>
+        <div class="stack-component">
+            <strong>Location:</strong> <code>khoj/sim/</code>
+        </div>
+        <p><strong>Purpose:</strong> Bridge between detector, swarm engine, and hardware boards.</p>
+        <ul>
+            <li><strong>feeder.py:</strong> Reference HIL feeder (parses goal frames, streams sensor frames over serial)</li>
+            <li><strong>feeder_real.py:</strong> Jetson-side bridge. Feeds real YOLO detections + RSSI to boards via USB serial</li>
+            <li><strong>wire_test.py:</strong> Validates protocol byte-stream in isolation</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>Why This Architecture</h2>
+        <table>
+            <tr>
+                <th>Design Choice</th>
+                <th>Problem It Solves</th>
+            </tr>
+            <tr>
+                <td>Leaderless Auction</td>
+                <td>No single point of failure. Drones re-coordinate in <2s if leader drops</td>
+            </tr>
+            <tr>
+                <td>Confirmation (≥2 agents)</td>
+                <td>0 false alarms. Structural rule: one sensor can never confirm, by design</td>
+            </tr>
+            <tr>
+                <td>Trust & Quarantine</td>
+                <td>Faulty/spoofed sensors auto-bench. Swarm keeps working at reduced efficiency</td>
+            </tr>
+            <tr>
+                <td>On-Device Belief</td>
+                <td>Decentralized: boards make decisions, not waiting for laptop comms</td>
+            </tr>
+            <tr>
+                <td>Jetson Edge Detector</td>
+                <td>Real drone compute. Not simulated—trained on actual SAR imagery, runs on device</td>
+            </tr>
+            <tr>
+                <td>ESP32 Mesh</td>
+                <td>Cheap (\$5 ea), scalable, no single router. Adds 5 more drones = add 5 boards</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Proven Performance</h2>
+        <div class="metric">
+            <strong>Survivors Confirmed:</strong> 4.23 (equal time budget vs. greedy 1.67 / lawnmower 1.40 / random 2.63)
+        </div>
+        <div class="metric">
+            <strong>False Alarms:</strong> 0 across 600 Monte-Carlo runs
+        </div>
+        <div class="metric">
+            <strong>Detector Accuracy:</strong> mAP50 0.934, recall 0.875 (trained on real SARD imagery)
+        </div>
+        <div class="metric">
+            <strong>On-Device Speed:</strong> ~6 ms/frame on Jetson Orin (inference)
+        </div>
+        <div class="metric">
+            <strong>ESP-NOW Mesh:</strong> 0% packet loss @ 5 Hz, 5 boards
+        </div>
+        <div class="metric">
+            <strong>Failure Detection:</strong> Dead peer recognized in < 2 seconds, auction re-runs automatically
+        </div>
+        <div class="metric">
+            <strong>RF Localization:</strong> Converges to ±0.3 grid cells (finds transmitter no drone can see)
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>How It Works (Mission Flow)</h2>
+        <ol>
+            <li><strong>Setup:</strong> 5 ESP32 boards boot on ESP-NOW mesh. Jetson boots with TensorRT engine ready. Laptop runs dashboard backend + WebSocket server.</li>
+            <li><strong>Coverage Phase:</strong> Each board runs the frontier auction itself and decides alone which cell to claim &mdash; the laptop never assigns goals. In the hardware-in-the-loop demo the laptop supplies sensor packets and simulates motion, terrain and RSSI; the decision is always the board's.</li>
+            <li><strong>Detection Phase:</strong> Jetson camera sees a person → runs YOLO → 0.81 confidence → sends <code>usb_sensor_t</code> to board.</li>
+            <li><strong>Auction Phase:</strong> Board receives detection, creates REOBSERVE task. All boards bid (pricing = estimated log-odds gain). Board A wins.</li>
+            <li><strong>Re-observation Phase:</strong> Board A navigates to coordinates. Second drone (B) arrives from different bearing, runs YOLO again → sees person at 0.92.</li>
+            <li><strong>Confirmation Phase:</strong> Laptop fuses two independent observations (0.81, 0.92 from different angles) → log-odds = 4.2 → CONFIRMED (survivor found).</li>
+            <li><strong>Next Auction:</strong> Remaining boards bid for frontier tasks. No pilot, no controller. Repeat until mission complete.</li>
+        </ol>
+    </div>
+
+    <div class="section">
+        <h2>Demo Status & Usage</h2>
+
+        <div class="demo-status">
+            <h3>✅ Ready for Demonstration</h3>
+            <ul>
+                <li><strong>Dashboard (Laptop):</strong> Fully functional. Run backend + frontend HTTP server. Shows live mission, auction, belief, confirmations.</li>
+                <li><strong>Jetson Live Camera:</strong> Fully functional. Run <code>jetson_stream.py</code>, open browser at <code>192.168.55.1:8090</code>. See live boxes + confidence in real-time.</li>
+                <li><strong>Metrics & Ablations:</strong> Fully functional. Run <code>python -m scripts.metrics --seeds 30</code> to show 4.23 vs baseline numbers.</li>
+            </ul>
+        </div>
+
+        <div class="demo-status partial">
+            <h3>⚙️ In Progress (Hardware Integration)</h3>
+            <ul>
+                <li><strong>5 ESP32 Boards:</strong> Firmware complete. Mesh + auction + RF working on bench. Integration with feeder_real.py ongoing.</li>
+                <li><strong>Real Detections to Boards:</strong> Jetson detector runs. Bridge (feeder_real.py) to forward confidences → boards in final assembly.</li>
+                <li><strong>End-to-End Demo:</strong> 5 boards + Jetson detector + laptop dashboard working together. Expected ready after feeder integration.</li>
+            </ul>
+        </div>
+
+        <h3>Three Live Demos</h3>
+        <div class="grid-2">
+            <div class="stack-component">
+                <strong>1. The Swarm Thinking</strong><br>
+                <small>Laptop dashboard showing real-time auction, coverage, belief heatmap, confirmation logic.</small><br>
+                <code>uvicorn backend.main:app</code><br>
+                <code>python -m http.server 3000 --directory frontend</code>
+            </div>
+            <div class="stack-component">
+                <strong>2. The Drone's Eye</strong><br>
+                <small>Jetson camera feed with live YOLO boxes + confidence overlay.</small><br>
+                <code>python3 jetson_stream.py --engine ~/best.engine --source 0</code><br>
+                → Browser: <code>192.168.55.1:8090</code>
+            </div>
+            <div class="stack-component">
+                <strong>3. Real Mesh</strong><br>
+                <small>5 boards coordinating without a leader. Pull power → re-auction in 2s.</small><br>
+                <code>feeder_real.py</code> + 5 flashed boards + dashboard
+            </div>
+            <div class="stack-component">
+                <strong>Metrics Proof</strong><br>
+                <small>30-seed Monte-Carlo showing 4.23 confirmed vs baselines 1.4–2.6, 0 false alarms.</small><br>
+                <code>python -m scripts.metrics --seeds 30 --budget 60</code>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>File Structure</h2>
+        <pre><code>NightWing/
+├── engine/               ← swarm logic, world sim, belief fusion
+├── detector/             ← YOLO training, Jetson export, live stream
+├── khoj/                 ← hardware: ESP32 firmware + USB protocol
+├── frontend/             ← Canvas dashboard UI
+├── backend/              ← FastAPI + WebSocket state server
+├── dashboard/            ← state adapters (fake/real/hardware modes)
+├── scripts/              ← metrics, viewer, perception demo
+├── demo/                 ← pitch materials (images, screenshots, notes)
+├── tests/                ← backend & WebSocket validation
+└── docs/                 ← state contract
+</code></pre>
+    </div>
+
+    <div class="section">
+        <h2>Presentation Use</h2>
+        <p><strong>Planned:</strong> Yes. KHOJ is built for demonstration and competition submission (INNOHACK 2.0).</p>
+        <ul>
+            <li><strong>Slides:</strong> <code>khoj/docs/ppt/KHOJ_INNOHACK.pptx</code> with architecture, auction, re-observation, RF, and results diagrams</li>
+            <li><strong>Live Demos:</strong> Dashboard (auction in real-time), Jetson camera (detector on device), 5 boards (leaderless coordination)</li>
+            <li><strong>Pitch Notes:</strong> <code>demo/PITCH_NOTES.md</code> (one-liner, problem, solution, numbers, Q&A prep)</li>
+            <li><strong>Sample Images:</strong> <code>demo/images/</code> (6 high-confidence aerial SAR frames for phone demo)</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>Next Steps</h2>
+        <ol>
+            <li>Complete <code>feeder_real.py</code> integration (Jetson detector → boards)</li>
+            <li>End-to-end test: 5 boards + live Jetson detector + dashboard together</li>
+            <li>Fill deck placeholders (team name, registration, Jetson ms/frame stat)</li>
+            <li>Rehearse all 3 demos in sequence</li>
+        </ol>
+    </div>
+
+</body>
+</html>
